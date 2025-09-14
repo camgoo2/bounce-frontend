@@ -11,7 +11,9 @@ import SwiftUI
 struct bounce_frontendApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeView()
         }
     }
 }
+
+
