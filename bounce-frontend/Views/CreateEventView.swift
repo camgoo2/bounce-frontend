@@ -9,7 +9,7 @@ import SwiftUI
 
 struct CreateEventView: View {
     @State private var title: String = ""
-    @State private var user_id: Int = 2 //Default to 2
+    @State private var friendId: Int = 0 // Field for friend ID
     @State private var isSubmitting = false
     @State private var message: String?
 
@@ -18,9 +18,9 @@ struct CreateEventView: View {
             Form {
                 Section(header: Text("Details")) {
                     TextField("What's the plan?", text: $title)
-                    TextField("User ID", value: $user_id, format:.number) // New TextField for friend
+                    TextField("Friend ID", value: $friendId, format: .number)
+                        .keyboardType(.numberPad) // Ensures numeric input
                 }
-               
                
                 Button(action: submitEvent) {
                     if isSubmitting {
@@ -29,12 +29,12 @@ struct CreateEventView: View {
                         Text("Send Bounce")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(title.isEmpty || isSubmitting ? Color.gray : Color.blue)
+                            .background((title.isEmpty || friendId == 0 || isSubmitting) ? Color.gray : Color.blue)
                             .foregroundColor(.white)
                             .cornerRadius(10)
                     }
                 }
-                .disabled(title.isEmpty || isSubmitting)
+                .disabled(title.isEmpty || friendId == 0 || isSubmitting)
             }
             .navigationTitle("Create Bounce")
         }
@@ -42,16 +42,24 @@ struct CreateEventView: View {
    
     private func submitEvent() {
         isSubmitting = true
-        APIService.shared.createEvent(title: title,  user_id: user_id) { result in
-            DispatchQueue.main.async {
-                isSubmitting = false
-                switch result {
-                case .success:
-                    message = "Bounce created 🎉"
-                    title = ""
-                case .failure(let error):
-                    message = "Error: \(error.localizedDescription)"
+        if let userId = UserDefaults.standard.value(forKey: "currentUserId") as? Int {
+            APIService.shared.createEvent(title: title, userId: userId, friendId: friendId) { result in // Updated function signature
+                DispatchQueue.main.async {
+                    isSubmitting = false
+                    switch result {
+                    case .success:
+                        message = "Bounce created and sent! 🎉"
+                        title = ""
+                        friendId = 0
+                    case .failure(let error):
+                        message = "Error: \(error.localizedDescription)"
+                    }
                 }
+            }
+        } else {
+            DispatchQueue.main.async {
+                message = "User not logged in. Please register or login."
+                isSubmitting = false
             }
         }
     }
