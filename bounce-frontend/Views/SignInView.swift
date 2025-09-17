@@ -84,31 +84,25 @@ struct SignInView: View {
     }
 
     private func login() {
-        let user = ["username": username]
-        guard let url = URL(string: "https://dbe4650a6a5b.ngrok-free.app/login") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: user)
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    message = "Error: \(error.localizedDescription)"
-                    return
+            APIService.shared.getUserByUsername(username: username) { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let user):
+                        if let userId = user["id"] as? Int {
+                            // Store the user_id in UserDefaults
+                            UserDefaults.standard.set(userId, forKey: "currentUserId")
+                            message = "Login successful! Redirecting... User ID: \(userId)"
+                            navigateToHome = true
+                        } else {
+                            message = "Login failed: No user ID returned"
+                        }
+                    case .failure(let error):
+                        message = "Error: \(error.localizedDescription)"
+                    }
+                    username = ""
                 }
-                guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                    message = "Invalid credentials or server error"
-                    return
-                }
-                if let data = data, let userData = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let userId = userData["id"] as? Int {
-                    UserDefaults.standard.set(userId, forKey: "currentUserId")
-                }
-                message = "Login successful!"
-                navigateToHome = true
             }
-        }.resume()
-    }
+        }
 }
 
 #Preview {
