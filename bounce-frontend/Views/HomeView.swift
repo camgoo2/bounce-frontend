@@ -9,6 +9,7 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var showCreateEventView = false
+    @State private var showInvitationsView = false
     @State private var healthMessage: String?
 
     var body: some View {
@@ -44,12 +45,27 @@ struct HomeView: View {
                 }
                 .padding(.horizontal)
 
+                Button(action: { showInvitationsView = true }) {
+                    Text("My Invitations")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                        .shadow(radius: 5)
+                }
+                .padding(.horizontal)
+
                 Spacer()
             }
             .sheet(isPresented: $showCreateEventView) {
                 CreateEventView()
             }
-            .navigationTitle("Welcome to Bounce ")
+            .sheet(isPresented: $showInvitationsView) {
+                InvitationsView()
+            }
+            .navigationTitle("Welcome to Bounce")
         }
     }
 
