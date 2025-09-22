@@ -7,6 +7,47 @@
 
 import Foundation
 
+// MARK: -Event Request Models
+struct CreateEventRequest: Codable {
+    let title: String
+    let creatorId: Int
+    let invitees: [InviteeRequest]
+    
+    enum CodingKeys: String, CodingKey {
+        case title
+        case creatorId = "creator_id"
+        case invitees
+    }
+}
+
+struct InviteeRequest: Codable {
+    let userName: String
+    let priority: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case userName = "user_name"
+        case priority
+    }
+}
+
+// MARK: -Event Response Models
+struct CreateEventResponse: Codable {
+    let id: Int
+    let title: String
+    let creatorId: Int
+    let status: String
+    let currentInviteeId: Int?
+    let message: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id, title, status, message
+        case creatorId = "creator_id"
+        case currentInviteeId = "current_invitee_id"
+    }
+}
+
+// Need to through ther below structs to see how they fit in exactly.
+
 struct EventSummary: Codable {
     let id: Int
     let title: String

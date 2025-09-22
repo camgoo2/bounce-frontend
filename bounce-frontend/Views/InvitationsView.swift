@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct InvitationsView: View {
-    @State private var invitations: UserInvitationsResponse?
+    @State private var invitations: UserInvitationsResponse? //The ? simply means it is an Optional in the sense that it can be nil.
     @State private var sentInvitations: UserSentInvitationsResponse?
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -25,10 +25,13 @@ struct InvitationsView: View {
                         }
                         
                         // Pending Invitations Section
+                        // checking if invitaions is a UserInvitationsResponse
+                        // ',' means a "and condition", so both conditions must be true. The '!' is a NOT Operator
                         if let invitations = invitations, !invitations.pendingInvitations.isEmpty {
                             Section(header: Text("Pending Invitations").foregroundColor(.orange)) {
                                 ForEach(invitations.pendingInvitations, id: \.event.id) { invitation in
-                                    PendingInvitationRow(invitation: invitation, onResponse: handleResponse)
+                                    //Pending Invitaion Row is actually a View (Struct)
+                                    PendingInvitationRow(invitation: invitation, onResponse: handleResponse) // We need to handle the response invite for Pending invitations.
                                 }
                             }
                         }
@@ -70,7 +73,7 @@ struct InvitationsView: View {
                 }
             }
             .navigationTitle("My Invitations")
-            .onAppear(perform: loadAllInvitations)
+            .onAppear(perform: loadAllInvitations) // This function is activated when the InvitationView is loaded.
             .refreshable {
                 await refreshInvitations()
             }
@@ -87,6 +90,7 @@ struct InvitationsView: View {
         errorMessage = nil
         
         // Load received invitations
+        // This is the API service which is called to get the user invitations.
         APIService.shared.getUserInvitations(userId: userId) { result in
             DispatchQueue.main.async {
                 switch result {
@@ -130,6 +134,9 @@ struct InvitationsView: View {
     }
     
     private func handleResponse(eventId: Int, status: String) {
+        let timestamp = Date()
+        print("🐛 handleResponse [\(timestamp)]: eventId=\(eventId), status='\(status)'")
+        print("🐛 handleResponse: Current invitations count = \(invitations?.pendingInvitations.count ?? 0)")
         APIService.shared.respondToEvent(eventId: eventId, status: status) { result in
             DispatchQueue.main.async {
                 switch result {
@@ -193,6 +200,7 @@ struct SentInvitationRow: View {
 struct PendingInvitationRow: View {
     let invitation: MyInvitationResponse
     let onResponse: (Int, String) -> Void
+    @State private var hasResponded = false  // Prevent any duplicates
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -211,34 +219,34 @@ struct PendingInvitationRow: View {
                     .fontWeight(.semibold)
             }
             
-            HStack(spacing: 12) {
+            VStack(spacing: 12) {  // ← Stack vertically instead of horizontally
                 Button(action: {
+                    guard !hasResponded else { return }
+                    hasResponded = true
+                    print("🟢 ACCEPT BUTTON: About to call onResponse with 'accepted'")
                     onResponse(invitation.event.id, "accepted")
                 }) {
-                    Text("Accept")
-                        .font(.footnote)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
-                        .background(Color.green)
-                        .cornerRadius(6)
+                    Text("Accept ✅")
+                        .frame(maxWidth: .infinity)  // ← Full width buttons
+                        .padding()
+                        .background(hasResponded ? Color.gray : Color.green)
+                        .cornerRadius(8)
                 }
+                .disabled(hasResponded)
                 
                 Button(action: {
+                    guard !hasResponded else { return }
+                    hasResponded = true
+                    print("🔴 DECLINE BUTTON: About to call onResponse with 'declined'")
                     onResponse(invitation.event.id, "declined")
                 }) {
-                    Text("Decline")
-                        .font(.footnote)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
-                        .background(Color.red)
-                        .cornerRadius(6)
+                    Text("Decline ❌")
+                        .frame(maxWidth: .infinity)  // ← Full width buttons
+                        .padding()
+                        .background(hasResponded ? Color.gray : Color.red)
+                        .cornerRadius(8)
                 }
-                
-                Spacer()
+                .disabled(hasResponded)
             }
         }
         .padding(.vertical, 4)

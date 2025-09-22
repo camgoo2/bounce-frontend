@@ -9,13 +9,12 @@
 import SwiftUI
 
 struct CreateEventView: View {
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.presentationMode) var presentationMode //Haven't looked into what this is exactly yet.
     @State private var title: String = ""
     @State private var priority1: String = "" // Field for friend name priority 1
     @State private var priority2: String = "" // Field for friend name priority 2
     @State private var isSubmitting = false
     @State private var message: String? // Use a single message state for consistency
-    @State private var showSuccessAlert = false // State for showing the alert
     
     var body: some View {
         NavigationView {
@@ -24,7 +23,6 @@ struct CreateEventView: View {
                     TextField("What's the plan?", text: $title)
                     TextField("Friend's user name                      (Priority 1)", text: $priority1)
                     TextField("Friend's user name                      (Priority 2)", text: $priority2)
-                        .keyboardType(.numberPad) // Ensures numeric input
                 }
                 
                 Button(action: submitEvent) {
@@ -34,12 +32,12 @@ struct CreateEventView: View {
                         Text("Send Bounce")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background((title.isEmpty || priority1.isEmpty || priority2.isEmpty || isSubmitting) ? Color.gray : Color.blue)
+                            .background((title.isEmpty || priority1.isEmpty || priority2.isEmpty || isSubmitting) ? Color.gray : Color.blue) //This is a classic ternary operator.
                             .foregroundColor(.white)
                             .cornerRadius(10)
                     }
                 }
-                .disabled(title.isEmpty || priority1.isEmpty || priority2.isEmpty || isSubmitting)
+                .disabled(title.isEmpty || priority1.isEmpty || priority2.isEmpty || isSubmitting) // Will be disabled if any of these are true. This is a compound boolean expression or validation logic.
                 
                 if let message = message {
                     Text(message)
@@ -47,11 +45,7 @@ struct CreateEventView: View {
                 }
             }
             .navigationTitle("Create Bounce")
-            .alert(isPresented: $showSuccessAlert) {
-                Alert(title: Text("Success"), message: Text(message ?? "Event successfully created"), dismissButton: .default(Text("OK")) {
-                    presentationMode.wrappedValue.dismiss() // Dismiss the sheet when OK is tapped
-                })
-            }
+
         }
     }
     
@@ -62,13 +56,11 @@ struct CreateEventView: View {
                 DispatchQueue.main.async {
                     isSubmitting = false
                     switch result {
-                    case .success(let data):
-                        message = data["message"] as? String
+                    case .success(let eventResponse):  // ← Now you get a proper struct!
+                        message = eventResponse.message  // ← No more as? String casting!
                         title = ""
                         priority1 = ""
                         priority2 = ""
-                        // Show alert immediately
-                        showSuccessAlert = true
                     case .failure(let error):
                         message = "Error: \(error.localizedDescription)"
                     }

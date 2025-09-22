@@ -32,62 +32,58 @@ class APIService {
         }.resume()
     }
    
-    func createEvent(title: String, userId: Int, priority1: String,priority2: String, completion: @escaping (Result<[String: Any], Error>) -> Void) {
-            let url = baseURL.appendingPathComponent("events")
-           
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-           
-            let body: [String: Any] = [
-                "title": title,
-                "invitees": [
-                    [
-                        "user_name": priority1,
-                        "priority": 1
-                    ],
-                    [
-                        "user_name": priority2,
-                        "priority": 2
-                    ]
-                    
-                ],
-                "creator_id": userId
+    func createEvent(title: String, userId: Int, priority1: String, priority2: String, completion: @escaping (Result<CreateEventResponse, Error>) -> Void) {
+        let url = baseURL.appendingPathComponent("events")
+        
+        // Build request using struct
+        let request = CreateEventRequest(
+            title: title,
+            creatorId: userId,
+            invitees: [
+                InviteeRequest(userName: priority1, priority: 1),
+                InviteeRequest(userName: priority2, priority: 2)
             ]
-            
-            do {
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            } catch {
+        )
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Use JSONEncoder instead of manual JSON building
+        do {
+            urlRequest.httpBody = try JSONEncoder().encode(request)
+        } catch {
+            completion(.failure(error))
+            return
+        }
+        
+        URLSession.shared.dataTask(with: urlRequest) { data, response, error in
+            if let error = error {
                 completion(.failure(error))
                 return
             }
-           
-            URLSession.shared.dataTask(with: request) { data, response, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-               
-                guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                    let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-                    let error = NSError(domain: "", code: statusCode, userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"])
-                    completion(.failure(error))
-                    return
-                }
-               
-                guard let data = data else {
-                    completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
-                    return
-                }
-               
-                do {
-                    let result = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                    completion(.success(result ?? [:]))
-                } catch {
-                    completion(.failure(error))
-                }
-            }.resume()
-        }
+            
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                let error = NSError(domain: "", code: statusCode, userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"])
+                completion(.failure(error))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
+                return
+            }
+            
+            // Use JSONDecoder instead of manual JSON parsing
+            do {
+                let eventResponse = try JSONDecoder().decode(CreateEventResponse.self, from: data)
+                completion(.success(eventResponse))
+            } catch {
+                completion(.failure(error))
+            }
+        }.resume()
+    }
    
     func createUser(username: String, fullName: String, completion: @escaping (Result<[String: Any], Error>) -> Void) {
         let url = baseURL.appendingPathComponent("users")
@@ -135,6 +131,7 @@ class APIService {
         }.resume()
     }
     
+    // This is the current login function where we are just getting the detals by username.
     func getUserByUsername(username: String, completion: @escaping (Result<[String: Any], Error>) -> Void) {
             guard let url = URL(string: "\(baseURL)/users/\(username)") else { return }
            
