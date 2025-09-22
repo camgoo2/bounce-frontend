@@ -200,56 +200,45 @@ struct SentInvitationRow: View {
 struct PendingInvitationRow: View {
     let invitation: MyInvitationResponse
     let onResponse: (Int, String) -> Void
-    @State private var hasResponded = false  // Prevent any duplicates
+    @State private var hasResponded = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                VStack(alignment: .leading) {
-                    Text(invitation.event.title)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                }
-                
+                Text(invitation.event.title)
+                    .font(.headline)
                 Spacer()
-                
                 Text("You're up!")
                     .font(.caption)
                     .foregroundColor(.orange)
                     .fontWeight(.semibold)
             }
             
-            VStack(spacing: 12) {  // ← Stack vertically instead of horizontally
-                Button(action: {
+            VStack(spacing: 12) {  // ← Vertical stack for buttons
+                Button("Accept ✅") {
                     guard !hasResponded else { return }
                     hasResponded = true
-                    print("🟢 ACCEPT BUTTON: About to call onResponse with 'accepted'")
+                    print("🟢 ACCEPT clicked for event \(invitation.event.id)")
                     onResponse(invitation.event.id, "accepted")
-                }) {
-                    Text("Accept ✅")
-                        .frame(maxWidth: .infinity)  // ← Full width buttons
-                        .padding()
-                        .background(hasResponded ? Color.gray : Color.green)
-                        .cornerRadius(8)
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(hasResponded ? .gray : .green)
                 .disabled(hasResponded)
+                .frame(maxWidth: .infinity)  // Full width buttons
                 
-                Button(action: {
+                Button("Decline ❌") {
                     guard !hasResponded else { return }
                     hasResponded = true
-                    print("🔴 DECLINE BUTTON: About to call onResponse with 'declined'")
+                    print("🔴 DECLINE clicked for event \(invitation.event.id)")
                     onResponse(invitation.event.id, "declined")
-                }) {
-                    Text("Decline ❌")
-                        .frame(maxWidth: .infinity)  // ← Full width buttons
-                        .padding()
-                        .background(hasResponded ? Color.gray : Color.red)
-                        .cornerRadius(8)
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(hasResponded ? .gray : .red)
                 .disabled(hasResponded)
+                .frame(maxWidth: .infinity)  // Full width buttons
             }
         }
-        .padding(.vertical, 4)
+        .padding()
     }
 }
 
