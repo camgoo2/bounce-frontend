@@ -1,5 +1,5 @@
 //
-//  InvitationModels.swift
+//  Models.swift
 //  bounce-frontend
 //
 //  Created by Cameron Goodhue on 17/09/2025.
@@ -7,16 +7,59 @@
 
 import Foundation
 
+// MARK: - Auth Models
+struct RegisterRequest: Codable {
+    let username: String
+    let email: String
+    let password: String
+    let fullName: String
+
+    enum CodingKeys: String, CodingKey {
+        case username, email, password
+        case fullName = "full_name"
+    }
+}
+
+struct LoginRequest: Codable {
+    let username: String
+    let password: String
+}
+
+struct AuthResponse: Codable {
+    let accessToken: String
+    let tokenType: String
+    let user: UserResponse
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case tokenType = "token_type"
+        case user
+    }
+}
+
+struct UserResponse: Codable {
+    let id: Int
+    let username: String
+    let email: String
+    let fullName: String
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, username, email
+        case fullName = "full_name"
+        case createdAt = "created_at"
+    }
+}
+
 // MARK: -Event Request Models
 struct CreateEventRequest: Codable {
     let title: String
-    let creatorId: Int
     let invitees: [InviteeRequest]
-    
+    let timeoutMinutes: Int
+
     enum CodingKeys: String, CodingKey {
-        case title
-        case creatorId = "creator_id"
-        case invitees
+        case title, invitees
+        case timeoutMinutes = "timeout_minutes"
     }
 }
 
@@ -37,12 +80,31 @@ struct CreateEventResponse: Codable {
     let creatorId: Int
     let status: String
     let currentInviteeId: Int?
-    let message: String
-    
+    let timeoutMinutes: Int
+    let createdAt: String
+    let invitees: [EventInviteeResponse]
+
     enum CodingKeys: String, CodingKey {
-        case id, title, status, message
+        case id, title, status, invitees
         case creatorId = "creator_id"
         case currentInviteeId = "current_invitee_id"
+        case timeoutMinutes = "timeout_minutes"
+        case createdAt = "created_at"
+    }
+}
+
+struct EventInviteeResponse: Codable {
+    let inviteeId: Int
+    let priority: Int
+    let status: String
+    let invitedAt: String?
+    let respondedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case priority, status
+        case inviteeId = "invitee_id"
+        case invitedAt = "invited_at"
+        case respondedAt = "responded_at"
     }
 }
 
@@ -53,10 +115,14 @@ struct EventSummary: Codable {
     let title: String
     let creatorId: Int
     let status: String
-    
+    let timeoutMinutes: Int
+    let createdAt: String
+
     enum CodingKeys: String, CodingKey {
         case id, title, status
         case creatorId = "creator_id"
+        case timeoutMinutes = "timeout_minutes"
+        case createdAt = "created_at"
     }
 }
 
