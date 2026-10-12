@@ -241,10 +241,8 @@ struct PendingInvitationRow: View {
                 Button("Accept ✅") {
                     guard !hasResponded else { return }
                     hasResponded = true
-                    print("🟢 ACCEPT clicked for invitation")
-                    // Note: We need the invitation ID, not event ID
-                    // For now using event.id - backend should accept this
-                    onResponse(invitation.event.id, "accepted")
+                    print("🟢 ACCEPT clicked for invitation ID: \(invitation.id)")
+                    onResponse(invitation.id, "accepted")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(hasResponded ? .gray : .green)
@@ -254,8 +252,8 @@ struct PendingInvitationRow: View {
                 Button("Decline ❌") {
                     guard !hasResponded else { return }
                     hasResponded = true
-                    print("🔴 DECLINE clicked for invitation")
-                    onResponse(invitation.event.id, "declined")
+                    print("🔴 DECLINE clicked for invitation ID: \(invitation.id)")
+                    onResponse(invitation.id, "declined")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(hasResponded ? .gray : .red)

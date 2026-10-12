@@ -127,14 +127,16 @@ struct EventSummary: Codable {
 }
 
 struct MyInvitationResponse: Codable {
+    let id: Int // Invitation ID (EventInvitee.id)
     let event: EventSummary
     let myPriority: Int
     let myStatus: String
     let invitedAt: String?
     let respondedAt: String?
     let isCurrentInvitee: Bool
-    
+
     enum CodingKeys: String, CodingKey {
+        case id
         case event
         case myPriority = "my_priority"
         case myStatus = "my_status"
