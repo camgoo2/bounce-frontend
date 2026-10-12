@@ -90,7 +90,7 @@ struct CreateEventView: View {
                 isSubmitting = false
 
                 switch result {
-                case .success(let eventResponse):
+                case .success:
                     message = "Event created! First invite sent to \(priority1)"
                     // Clear form
                     title = ""
