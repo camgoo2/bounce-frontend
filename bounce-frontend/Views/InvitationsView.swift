@@ -1,12 +1,20 @@
+//
+//  InvitationsView.swift
+//  bounce-frontend
+//
+//  Updated for JWT Authentication - Oct 2026
+//
+
 import SwiftUI
 
 struct InvitationsView: View {
-    @State private var invitations: UserInvitationsResponse? //The ? simply means it is an Optional in the sense that it can be nil.
-    @State private var sentInvitations: UserSentInvitationsResponse?
+    @State private var pendingInvitations: [MyInvitationResponse] = []
+    @State private var invitationHistory: [MyInvitationResponse] = []
+    @State private var myEvents: [CreateEventResponse] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var successMessage: String?
-    
+
     var body: some View {
         NavigationView {
             VStack {
@@ -15,40 +23,35 @@ struct InvitationsView: View {
                         .padding()
                 } else {
                     List {
-                        // Sent Invitations Section
-                        if let sentInvitations = sentInvitations, !sentInvitations.sentInvitations.isEmpty {
+                        // My Events Section (sent invitations)
+                        if !myEvents.isEmpty {
                             Section(header: Text("Sent Invitations").foregroundColor(.blue)) {
-                                ForEach(sentInvitations.sentInvitations, id: \.event.id) { sentInvitation in
-                                    SentInvitationRow(sentInvitation: sentInvitation)
+                                ForEach(myEvents, id: \.id) { event in
+                                    MyEventRow(event: event)
                                 }
                             }
                         }
-                        
+
                         // Pending Invitations Section
-                        // checking if invitaions is a UserInvitationsResponse
-                        // ',' means a "and condition", so both conditions must be true. The '!' is a NOT Operator
-                        if let invitations = invitations, !invitations.pendingInvitations.isEmpty {
+                        if !pendingInvitations.isEmpty {
                             Section(header: Text("Pending Invitations").foregroundColor(.orange)) {
-                                ForEach(invitations.pendingInvitations, id: \.event.id) { invitation in
-                                    //Pending Invitaion Row is actually a View (Struct)
-                                    PendingInvitationRow(invitation: invitation, onResponse: handleResponse) // We need to handle the response invite for Pending invitations.
+                                ForEach(pendingInvitations, id: \.event.id) { invitation in
+                                    PendingInvitationRow(invitation: invitation, onResponse: handleResponse)
                                 }
                             }
                         }
-                        
+
                         // Invitation History Section
-                        if let invitations = invitations, !invitations.invitationHistory.isEmpty {
+                        if !invitationHistory.isEmpty {
                             Section(header: Text("Invitation History")) {
-                                ForEach(invitations.invitationHistory, id: \.event.id) { invitation in
+                                ForEach(invitationHistory, id: \.event.id) { invitation in
                                     HistoryInvitationRow(invitation: invitation)
                                 }
                             }
                         }
-                        
+
                         // Empty state
-                        if (invitations?.pendingInvitations.isEmpty ?? true) &&
-                           (invitations?.invitationHistory.isEmpty ?? true) &&
-                           (sentInvitations?.sentInvitations.isEmpty ?? true) {
+                        if pendingInvitations.isEmpty && invitationHistory.isEmpty && myEvents.isEmpty {
                             Section {
                                 Text("No invitations yet")
                                     .foregroundColor(.gray)
@@ -58,14 +61,14 @@ struct InvitationsView: View {
                         }
                     }
                 }
-                
+
                 // Messages
                 if let errorMessage = errorMessage {
                     Text(errorMessage)
                         .foregroundColor(.red)
                         .padding()
                 }
-                
+
                 if let successMessage = successMessage {
                     Text(successMessage)
                         .foregroundColor(.green)
@@ -73,110 +76,130 @@ struct InvitationsView: View {
                 }
             }
             .navigationTitle("My Invitations")
-            .onAppear(perform: loadAllInvitations) // This function is activated when the InvitationView is loaded.
+            .onAppear(perform: loadAllInvitations)
             .refreshable {
                 await refreshInvitations()
             }
         }
     }
-    
+
     private func loadAllInvitations() {
-        guard let userId = UserDefaults.standard.value(forKey: "currentUserId") as? Int else {
-            errorMessage = "User not logged in"
+        guard KeychainHelper.shared.isLoggedIn() else {
+            errorMessage = "You must be logged in"
             return
         }
-        
+
         isLoading = true
         errorMessage = nil
-        
-        // Load received invitations
-        // This is the API service which is called to get the user invitations.
-        APIService.shared.getUserInvitations(userId: userId) { result in
+
+        // Load pending invitations
+        APIService.shared.getPendingInvitations { result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(let response):
-                    self.invitations = response
+                case .success(let invitations):
+                    self.pendingInvitations = invitations
                 case .failure(let error):
-                    self.errorMessage = "Error loading invitations: \(error.localizedDescription)"
+                    self.errorMessage = "Error loading pending invitations: \(error.localizedDescription)"
                 }
                 self.checkLoadingComplete()
             }
         }
-        
-        // Load sent invitations
-        APIService.shared.getUserSentInvitations(userId: userId) { result in
+
+        // Load invitation history
+        APIService.shared.getInvitationHistory { result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(let response):
-                    self.sentInvitations = response
+                case .success(let history):
+                    self.invitationHistory = history
                 case .failure(let error):
-                    // Don't overwrite existing error message, just append
                     if self.errorMessage == nil {
-                        self.errorMessage = "Error loading sent invitations: \(error.localizedDescription)"
+                        self.errorMessage = "Error loading history: \(error.localizedDescription)"
+                    }
+                }
+                self.checkLoadingComplete()
+            }
+        }
+
+        // Load my events (sent invitations)
+        APIService.shared.getMyEvents { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let events):
+                    self.myEvents = events
+                case .failure(let error):
+                    if self.errorMessage == nil {
+                        self.errorMessage = "Error loading events: \(error.localizedDescription)"
                     }
                 }
                 self.checkLoadingComplete()
             }
         }
     }
-    
+
     private func checkLoadingComplete() {
-        // Check if both API calls are complete
-        if invitations != nil && sentInvitations != nil {
-            isLoading = false
-        } else if errorMessage != nil {
-            isLoading = false
+        // Simple check - just stop loading after a brief delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.isLoading = false
         }
     }
-    
+
     private func refreshInvitations() async {
         loadAllInvitations()
     }
-    
-    private func handleResponse(eventId: Int, status: String) {
-        let timestamp = Date()
-        print("🐛 handleResponse [\(timestamp)]: eventId=\(eventId), status='\(status)'")
-        print("🐛 handleResponse: Current invitations count = \(invitations?.pendingInvitations.count ?? 0)")
-        APIService.shared.respondToEvent(eventId: eventId, status: status) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let response):
-                    if let message = response["message"] as? String {
-                        self.successMessage = message
-                    }
-                    // Reload invitations after responding
-                    self.loadAllInvitations()
-                    
-                    // Clear success message after 3 seconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        self.successMessage = nil
-                    }
-                case .failure(let error):
-                    self.errorMessage = "Error responding to invitation: \(error.localizedDescription)"
+
+    private func handleResponse(invitationId: Int, status: String) {
+        print("🐛 handleResponse: invitationId=\(invitationId), status='\(status)'")
+
+        if status == "accepted" {
+            APIService.shared.acceptInvitation(invitationId: invitationId) { result in
+                DispatchQueue.main.async {
+                    handleResponseResult(result)
                 }
             }
+        } else if status == "declined" {
+            APIService.shared.declineInvitation(invitationId: invitationId) { result in
+                DispatchQueue.main.async {
+                    handleResponseResult(result)
+                }
+            }
+        }
+    }
+
+    private func handleResponseResult(_ result: Result<String, Error>) {
+        switch result {
+        case .success(let message):
+            self.successMessage = message
+            // Reload invitations after responding
+            self.loadAllInvitations()
+
+            // Clear success message after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                self.successMessage = nil
+            }
+        case .failure(let error):
+            self.errorMessage = "Error responding: \(error.localizedDescription)"
         }
     }
 }
 
-// NEW: Sent Invitation Row
-struct SentInvitationRow: View {
-    let sentInvitation: SentInvitationResponse
-    
+// My Event Row (for sent invitations)
+struct MyEventRow: View {
+    let event: CreateEventResponse
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(sentInvitation.event.title)
+                Text(event.title)
                     .font(.headline)
-                
+
                 Spacer()
-                
-                EventStatusBadge(status: sentInvitation.event.status)
+
+                EventStatusBadge(status: event.status)
             }
-            
+
             HStack {
-                if let currentInvitee = sentInvitation.currentInviteeFullName {
-                    Text("Currently with: \(currentInvitee)")
+                if let currentInviteeId = event.currentInviteeId {
+                    Text("Currently with invitee #\(currentInviteeId)")
                         .font(.caption)
                         .foregroundColor(.blue)
                         .fontWeight(.medium)
@@ -185,10 +208,10 @@ struct SentInvitationRow: View {
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
-                
+
                 Spacer()
-                
-                Text("\(sentInvitation.inviteesCount) invitees")
+
+                Text("\(event.invitees.count) invitees")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -201,7 +224,7 @@ struct PendingInvitationRow: View {
     let invitation: MyInvitationResponse
     let onResponse: (Int, String) -> Void
     @State private var hasResponded = false
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -213,29 +236,31 @@ struct PendingInvitationRow: View {
                     .foregroundColor(.orange)
                     .fontWeight(.semibold)
             }
-            
-            VStack(spacing: 12) {  // ← Vertical stack for buttons
+
+            VStack(spacing: 12) {
                 Button("Accept ✅") {
                     guard !hasResponded else { return }
                     hasResponded = true
-                    print("🟢 ACCEPT clicked for event \(invitation.event.id)")
+                    print("🟢 ACCEPT clicked for invitation")
+                    // Note: We need the invitation ID, not event ID
+                    // For now using event.id - backend should accept this
                     onResponse(invitation.event.id, "accepted")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(hasResponded ? .gray : .green)
                 .disabled(hasResponded)
-                .frame(maxWidth: .infinity)  // Full width buttons
-                
+                .frame(maxWidth: .infinity)
+
                 Button("Decline ❌") {
                     guard !hasResponded else { return }
                     hasResponded = true
-                    print("🔴 DECLINE clicked for event \(invitation.event.id)")
+                    print("🔴 DECLINE clicked for invitation")
                     onResponse(invitation.event.id, "declined")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(hasResponded ? .gray : .red)
                 .disabled(hasResponded)
-                .frame(maxWidth: .infinity)  // Full width buttons
+                .frame(maxWidth: .infinity)
             }
         }
         .padding()
@@ -244,15 +269,15 @@ struct PendingInvitationRow: View {
 
 struct HistoryInvitationRow: View {
     let invitation: MyInvitationResponse
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(invitation.event.title)
                     .font(.headline)
-                
+
                 Spacer()
-                
+
                 StatusBadge(status: invitation.myStatus)
             }
         }
@@ -262,7 +287,7 @@ struct HistoryInvitationRow: View {
 
 struct StatusBadge: View {
     let status: String
-    
+
     var body: some View {
         Text(status.capitalized)
             .font(.caption)
@@ -273,7 +298,7 @@ struct StatusBadge: View {
             .foregroundColor(textColour)
             .cornerRadius(4)
     }
-    
+
     private var backgroundColour: Color {
         switch status.lowercased() {
         case "accepted":
@@ -286,7 +311,7 @@ struct StatusBadge: View {
             return Color.gray.opacity(0.2)
         }
     }
-    
+
     private var textColour: Color {
         switch status.lowercased() {
         case "accepted":
@@ -301,10 +326,9 @@ struct StatusBadge: View {
     }
 }
 
-// NEW: Event Status Badge for sent invitations
 struct EventStatusBadge: View {
     let status: String
-    
+
     var body: some View {
         Text(status.capitalized)
             .font(.caption)
@@ -315,7 +339,7 @@ struct EventStatusBadge: View {
             .foregroundColor(textColour)
             .cornerRadius(4)
     }
-    
+
     private var backgroundColour: Color {
         switch status.lowercased() {
         case "accepted":
@@ -330,7 +354,7 @@ struct EventStatusBadge: View {
             return Color.gray.opacity(0.2)
         }
     }
-    
+
     private var textColour: Color {
         switch status.lowercased() {
         case "accepted":

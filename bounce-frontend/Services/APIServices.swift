@@ -115,7 +115,7 @@ class APIService {
     func getCurrentUser(completion: @escaping (Result<UserResponse, Error>) -> Void) {
         let url = baseURL.appendingPathComponent("api/v1/auth/me")
 
-        guard var urlRequest = createAuthenticatedRequest(url: url, method: "GET") else {
+        guard let urlRequest = createAuthenticatedRequest(url: url, method: "GET") else {
             completion(.failure(NSError(domain: "", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])))
             return
         }
